@@ -1,9 +1,26 @@
 // 右侧面板
-import { mockTools } from '../data/mockTools'
+import type { Tool } from '../data/mockTools'
 
-export function RightPanel() {
-  const favoriteTools = mockTools.filter((tool) => tool.isFavorite)
-  const recentTools = mockTools.slice(0, 3)
+interface RightPanelProps {
+  tools: Tool[]
+  onToolSelect: (toolId: string) => void
+}
+
+export function RightPanel({ tools, onToolSelect }: RightPanelProps) {
+  const favoriteTools = tools.filter((tool) => tool.isFavorite)
+  const recentTools = tools
+    .filter((tool) => tool.lastUsedAt)
+    .sort(
+      (firstTool, secondTool) =>
+        new Date(secondTool.lastUsedAt ?? 0).getTime() -
+        new Date(firstTool.lastUsedAt ?? 0).getTime(),
+    )
+    .slice(0, 3)
+  const promptCount = tools.reduce(
+    (total, tool) => total + tool.promptTemplates.length,
+    0,
+  )
+  const totalUseCount = tools.reduce((total, tool) => total + tool.useCount, 0)
 
   return (
     <aside className="right-panel">
@@ -12,11 +29,18 @@ export function RightPanel() {
 
         <div className="mini-list">
           {favoriteTools.map((tool) => (
-            <div key={tool.id} className="mini-item">
+            <button
+              key={tool.id}
+              className="mini-item"
+              onClick={() => onToolSelect(tool.id)}
+            >
               <span>{tool.name}</span>
               <small>{tool.category}</small>
-            </div>
+            </button>
           ))}
+          {favoriteTools.length === 0 && (
+            <div className="mini-empty">还没有收藏工具</div>
+          )}
         </div>
       </section>
 
@@ -25,11 +49,18 @@ export function RightPanel() {
 
         <div className="mini-list">
           {recentTools.map((tool) => (
-            <div key={tool.id} className="mini-item">
+            <button
+              key={tool.id}
+              className="mini-item"
+              onClick={() => onToolSelect(tool.id)}
+            >
               <span>{tool.name}</span>
-              <small>{tool.badge}</small>
-            </div>
+              <small>使用 {tool.useCount} 次</small>
+            </button>
           ))}
+          {recentTools.length === 0 && (
+            <div className="mini-empty">复制 Prompt 或打开官网后会记录在这里</div>
+          )}
         </div>
       </section>
 
@@ -38,22 +69,22 @@ export function RightPanel() {
 
         <div className="stats-grid">
           <div className="stat-item">
-            <strong>6</strong>
+            <strong>{tools.length}</strong>
             <span>工具总数</span>
           </div>
 
           <div className="stat-item">
-            <strong>3</strong>
+            <strong>{favoriteTools.length}</strong>
             <span>收藏工具</span>
           </div>
 
           <div className="stat-item">
-            <strong>7</strong>
-            <span>分类数量</span>
+            <strong>{totalUseCount}</strong>
+            <span>使用次数</span>
           </div>
 
           <div className="stat-item">
-            <strong>12</strong>
+            <strong>{promptCount}</strong>
             <span>Prompt 模板</span>
           </div>
         </div>

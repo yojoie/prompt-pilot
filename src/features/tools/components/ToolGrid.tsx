@@ -1,8 +1,20 @@
 // 工具卡片墙
-import { mockTools } from '../data/mockTools'
+import type { Tool } from '../data/mockTools'
 import { ToolCard } from './ToolCard'
 
-export function ToolGrid() {
+interface ToolGridProps {
+  tools: Tool[]
+  onToolSelect: (toolId: string) => void
+  onFavoriteToggle: (toolId: string) => void
+  onOpenTool: (toolId: string) => void
+}
+
+export function ToolGrid({
+  tools,
+  onToolSelect,
+  onFavoriteToggle,
+  onOpenTool,
+}: ToolGridProps) {
   return (
     <section className="tool-section">
       <div className="section-header">
@@ -15,10 +27,23 @@ export function ToolGrid() {
       </div>
 
       <div className="tool-grid">
-        {mockTools.map((tool) => (
-          <ToolCard key={tool.id} tool={tool} />
+        {tools.map((tool) => (
+          <ToolCard
+            key={tool.id}
+            tool={tool}
+            onSelect={onToolSelect}
+            onFavoriteToggle={onFavoriteToggle}
+            onOpenTool={onOpenTool}
+          />
         ))}
       </div>
+
+      {tools.length === 0 && (
+        <div className="empty-state">
+          <strong>暂无工具</strong>
+          <span>可以从“添加工具”开始维护你的 AI 工具库。</span>
+        </div>
+      )}
     </section>
   )
 }
