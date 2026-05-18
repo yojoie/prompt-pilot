@@ -1,4 +1,4 @@
-// 工具假数据
+// 工具数据
 export interface PromptVariable {
   id: string
   label: string
