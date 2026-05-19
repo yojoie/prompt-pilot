@@ -1,4 +1,5 @@
 // 工具详情页
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import type { PromptTemplate, Tool } from '../data/mockTools'
 
@@ -201,15 +202,15 @@ export function ToolDetail({
       </div>
 
       <div className="detail-hero">
-        <div className="tool-logo-shell detail-logo">
-          <span>{tool.name.slice(0, 1)}</span>
-          <img
-            src={tool.logoUrl}
-            alt={`${tool.name} logo`}
-            onError={(event) => {
-              event.currentTarget.style.display = 'none'
-            }}
-          />
+        <div
+          className="tool-logo-shell detail-logo"
+          style={
+            {
+              '--tool-logo-tone': tool.logoTone,
+            } as CSSProperties
+          }
+        >
+          <span>{tool.logoText}</span>
         </div>
 
         {isEditing ? (

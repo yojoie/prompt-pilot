@@ -1,5 +1,5 @@
 // 工具卡片组件
-import type { KeyboardEvent, MouseEvent } from 'react'
+import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
 import type { Tool } from '../data/mockTools'
 
 interface ToolCardProps {
@@ -51,15 +51,15 @@ export function ToolCard({
     >
       <div className="tool-card-header">
         <div className="tool-title-row">
-          <div className="tool-logo-shell">
-            <span>{tool.name.slice(0, 1)}</span>
-            <img
-              src={tool.logoUrl}
-              alt={`${tool.name} logo`}
-              onError={(event) => {
-                event.currentTarget.style.display = 'none'
-              }}
-            />
+          <div
+            className="tool-logo-shell"
+            style={
+              {
+                '--tool-logo-tone': tool.logoTone,
+              } as CSSProperties
+            }
+          >
+            <span>{tool.logoText}</span>
           </div>
           <div>
             <h3>{tool.name}</h3>
