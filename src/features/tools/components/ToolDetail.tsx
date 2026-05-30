@@ -2,6 +2,7 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import type { PromptTemplate, Tool } from '../data/mockTools'
+import { getPromptFavoriteId } from '../store/toolsStore'
 
 type EditableToolFields = Pick<
   Tool,
@@ -12,12 +13,15 @@ type PromptValues = Record<string, Record<string, string>>
 type CopyStatus = Record<string, 'copied' | 'failed'>
 
 interface ToolDetailProps {
+  favoritePromptIds: string[]
   tool: Tool
   onBack: () => void
   onToggleFavorite: (toolId: string) => void
+  onTogglePromptFavorite: (toolId: string, template: PromptTemplate) => void
   onDelete: (toolId: string) => void
   onUpdate: (toolId: string, updates: EditableToolFields) => void
-  onUseTool: (toolId: string) => void
+  onPromptCopied: (toolId: string, template: PromptTemplate) => void
+  onTemplateEdited: (toolId: string, template: PromptTemplate) => void
   onOpenTool: (toolId: string) => void
 }
 
@@ -82,12 +86,15 @@ function displayUrl(url: string) {
 }
 
 export function ToolDetail({
+  favoritePromptIds,
   tool,
   onBack,
   onToggleFavorite,
+  onTogglePromptFavorite,
   onDelete,
   onUpdate,
-  onUseTool,
+  onPromptCopied,
+  onTemplateEdited,
   onOpenTool,
 }: ToolDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -166,7 +173,7 @@ export function ToolDetail({
 
     try {
       await copyText(finalPrompt)
-      onUseTool(tool.id)
+      onPromptCopied(tool.id, template)
       setTemporaryCopyStatus(template.id, 'copied')
     } catch {
       setTemporaryCopyStatus(template.id, 'failed')
@@ -367,6 +374,9 @@ export function ToolDetail({
           {tool.promptTemplates.map((template) => {
             const generatedPrompt = generatedPrompts[template.id]
             const templateValues = promptValues[template.id] ?? {}
+            const isTemplateFavorite = favoritePromptIds.includes(
+              getPromptFavoriteId(tool.id, template.id),
+            )
             const copyLabel =
               copyStatus[template.id] === 'copied'
                 ? '已复制'
@@ -381,12 +391,24 @@ export function ToolDetail({
                     <h4>{template.title}</h4>
                     <p>{template.description}</p>
                   </div>
-                  <button
-                    className="ghost-button"
-                    onClick={() => openToolForTemplate(template)}
-                  >
-                    打开 {tool.name}
-                  </button>
+                  <div className="prompt-template-heading-actions">
+                    <button
+                      className={
+                        isTemplateFavorite
+                          ? 'favorite-action active'
+                          : 'favorite-action'
+                      }
+                      onClick={() => onTogglePromptFavorite(tool.id, template)}
+                    >
+                      {isTemplateFavorite ? '已收藏' : '收藏模板'}
+                    </button>
+                    <button
+                      className="ghost-button"
+                      onClick={() => openToolForTemplate(template)}
+                    >
+                      打开 {tool.name}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="prompt-variable-grid">
@@ -400,6 +422,7 @@ export function ToolDetail({
                         <textarea
                           value={templateValues[variable.id] ?? ''}
                           placeholder={variable.placeholder}
+                          onBlur={() => onTemplateEdited(tool.id, template)}
                           onChange={(event) =>
                             updatePromptValue(
                               template.id,
@@ -412,6 +435,7 @@ export function ToolDetail({
                         <input
                           value={templateValues[variable.id] ?? ''}
                           placeholder={variable.placeholder}
+                          onBlur={() => onTemplateEdited(tool.id, template)}
                           onChange={(event) =>
                             updatePromptValue(
                               template.id,

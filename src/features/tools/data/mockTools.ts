@@ -982,6 +982,57 @@ export const mockTools: Tool[] = [
     ],
   }),
   createTool({
+    id: 'github-copilot',
+    name: 'GitHub Copilot',
+    category: 'AI 编程',
+    group: 'dev',
+    description: '嵌入编辑器和 GitHub 工作流的 AI 编程助手，适合代码补全、解释、测试和 PR 辅助。',
+    tags: ['代码', '编程', 'GitHub'],
+    badge: '代码协作',
+    logoUrl: 'https://github.githubassets.com/favicons/favicon.svg',
+    logoText: 'GH',
+    logoTone: '#24292f',
+    officialUrl: 'https://github.com/features/copilot',
+    pricing: '免费额度 + 订阅制高级能力',
+    capabilities: ['文本', '代码', '测试', '代码审查'],
+    useCases: [
+      '在编辑器里补全函数、组件和测试用例',
+      '解释陌生代码并生成重构建议',
+      '辅助 PR 描述、提交说明和代码审查',
+    ],
+    pros: ['贴近 GitHub 生态', '适合连续编码任务', '对代码上下文理解自然'],
+    cons: ['复杂架构变更仍需人工拆解', '生成代码需要测试和 review'],
+    promptTemplates: [
+      {
+        id: 'copilot-code-review',
+        title: '代码审查 Prompt',
+        description: '让 Copilot 聚焦风险、测试缺口和可维护性问题。',
+        content:
+          '请审查以下{{language}}代码，重点关注潜在 bug、边界条件、性能问题、类型安全和测试缺口。请按严重程度输出问题、原因和建议修改方式。\n\n代码范围：\n{{code_scope}}\n\n背景：\n{{context}}',
+        variables: [
+          {
+            id: 'language',
+            label: '技术栈',
+            placeholder: '例如：React + TypeScript',
+            defaultValue: 'React + TypeScript',
+          },
+          {
+            id: 'code_scope',
+            label: '代码范围',
+            placeholder: '说明文件、函数或 PR 范围',
+            multiline: true,
+          },
+          {
+            id: 'context',
+            label: '背景说明',
+            placeholder: '补充需求、已知约束或你担心的问题',
+            multiline: true,
+          },
+        ],
+      },
+    ],
+  }),
+  createTool({
     id: 'cursor',
     name: 'Cursor',
     category: 'AI 编程',

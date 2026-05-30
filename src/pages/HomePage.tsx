@@ -1,15 +1,22 @@
 // 主页面
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CategorySidebar } from '../features/tools/components/CategorySidebar'
 import { ToolGrid } from '../features/tools/components/ToolGrid'
 import { RightPanel } from '../features/tools/components/RightPanel'
 import { ToolDetail } from '../features/tools/components/ToolDetail'
+import { ToolAgentPanel } from '../features/tools/components/ToolAgentPanel'
 import {
   AddToolModal,
   type AddToolPayload,
 } from '../features/tools/components/AddToolModal'
 import { categoryOptions } from '../features/tools/data/categoryOptions'
-import { mockTools, type Tool } from '../features/tools/data/mockTools'
+import type { Tool } from '../features/tools/data/mockTools'
+import { useDebouncedValue } from '../features/tools/hooks/useDebouncedValue'
+import {
+  toolsStoreActions,
+  useToolsStore,
+} from '../features/tools/store/toolsStore'
+import { searchTools } from '../features/tools/utils/searchTools'
 import logo from '../assets/jellyfish0.png'
 
 type EditableToolFields = Pick<
@@ -19,119 +26,47 @@ type EditableToolFields = Pick<
 
 export function HomePage() {
   const [isDark, setIsDark] = useState(false)
-  const [tools, setTools] = useState<Tool[]>(mockTools)
+  const { favoritePromptIds, favoriteWorkflows, recentItems, tools } =
+    useToolsStore((currentState) => currentState)
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState('all')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [isAddToolOpen, setIsAddToolOpen] = useState(false)
+  const debouncedSearchQuery = useDebouncedValue(searchQuery)
 
   const selectedTool = tools.find((tool) => tool.id === selectedToolId)
   const activeCategoryLabel =
     categoryOptions.find((category) => category.id === activeCategory)?.label ??
     '全部'
-  const searchTerms = searchQuery
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-  const categoryFilteredTools =
-    activeCategory === 'all'
-      ? tools
-      : tools.filter((tool) => tool.group === activeCategory)
-  const getTagMatchCount = (tool: Tool) => {
-    const searchableTags = [
-      ...tool.tags,
-      ...tool.capabilities,
-      tool.category,
-      tool.badge,
-    ]
+  const filteredTools = useMemo(
+    () =>
+      searchTools(tools, {
+        categoryId: activeCategory,
+        favoriteOnly,
+        query: debouncedSearchQuery,
+        selectedTags,
+      }),
+    [activeCategory, debouncedSearchQuery, favoriteOnly, selectedTags, tools],
+  )
 
-    return selectedTags.filter((tag) =>
-      searchableTags.some((searchableTag) => searchableTag.includes(tag)),
-    ).length
+  const selectTool = (toolId: string) => {
+    toolsStoreActions.recordToolOpened(toolId)
+    setSelectedToolId(toolId)
   }
-  const matchesSearch = (tool: Tool) => {
-    if (searchTerms.length === 0) {
-      return true
-    }
-
-    const searchableText = [
-      tool.name,
-      tool.logoText,
-      tool.category,
-      tool.description,
-      tool.badge,
-      ...tool.tags,
-      ...tool.capabilities,
-      ...tool.useCases,
-      ...tool.promptTemplates.flatMap((template) => [
-        template.title,
-        template.description,
-        ...template.variables.map((variable) => variable.label),
-      ]),
-    ]
-      .join(' ')
-      .toLowerCase()
-
-    return searchTerms.every((term) => searchableText.includes(term))
-  }
-  const tagFilteredTools =
-    selectedTags.length === 0
-      ? categoryFilteredTools
-      : categoryFilteredTools
-        .map((tool) => ({
-          tool,
-          matchCount: getTagMatchCount(tool),
-        }))
-        .filter(({ matchCount }) => matchCount > 0)
-        .sort((firstTool, secondTool) => secondTool.matchCount - firstTool.matchCount)
-        .map(({ tool }) => tool)
-  const filteredTools = tagFilteredTools.filter(matchesSearch)
 
   const toggleFavorite = (toolId: string) => {
-    setTools((currentTools) =>
-      currentTools.map((tool) =>
-        tool.id === toolId
-          ? {
-            ...tool,
-            isFavorite: !tool.isFavorite,
-          }
-          : tool,
-      ),
-    )
+    toolsStoreActions.toggleFavorite(toolId)
   }
 
   const deleteTool = (toolId: string) => {
-    setTools((currentTools) => currentTools.filter((tool) => tool.id !== toolId))
+    toolsStoreActions.deleteTool(toolId)
     setSelectedToolId(null)
   }
 
   const updateTool = (toolId: string, updates: EditableToolFields) => {
-    setTools((currentTools) =>
-      currentTools.map((tool) =>
-        tool.id === toolId
-          ? {
-            ...tool,
-            ...updates,
-          }
-          : tool,
-      ),
-    )
-  }
-
-  const recordToolUse = (toolId: string) => {
-    setTools((currentTools) =>
-      currentTools.map((tool) =>
-        tool.id === toolId
-          ? {
-            ...tool,
-            useCount: tool.useCount + 1,
-            lastUsedAt: new Date().toISOString(),
-          }
-          : tool,
-      ),
-    )
+    toolsStoreActions.updateTool(toolId, updates)
   }
 
   const openToolWebsite = (toolId: string) => {
@@ -141,7 +76,7 @@ export function HomePage() {
       return
     }
 
-    recordToolUse(toolId)
+    toolsStoreActions.recordToolOpened(toolId, true)
     window.open(tool.officialUrl, '_blank', 'noopener,noreferrer')
   }
 
@@ -162,6 +97,24 @@ export function HomePage() {
   const changeSearchQuery = (value: string) => {
     setSearchQuery(value)
     setSelectedToolId(null)
+  }
+
+  const clearFilters = () => {
+    setActiveCategory('all')
+    setFavoriteOnly(false)
+    setSearchQuery('')
+    setSelectedTags([])
+    setSelectedToolId(null)
+  }
+
+  const openWorkflow = (toolIds: string[]) => {
+    const firstToolId = toolIds.find((toolId) =>
+      tools.some((tool) => tool.id === toolId),
+    )
+
+    if (firstToolId) {
+      selectTool(firstToolId)
+    }
   }
 
   const createToolId = (name: string) => {
@@ -236,8 +189,9 @@ export function HomePage() {
     const groupOption = categoryOptions.find(
       (category) => category.id === payload.group,
     )
+    const newToolId = createToolId(payload.name)
     const newTool: Tool = {
-      id: createToolId(payload.name),
+      id: newToolId,
       name: payload.name,
       category: groupOption?.label ?? '常用',
       group: payload.group,
@@ -261,7 +215,7 @@ export function HomePage() {
       cons: ['详情内容为初始版本，建议后续按真实体验继续补充'],
       promptTemplates: [
         {
-          id: `${createToolId(payload.name)}-starter`,
+          id: `${newToolId}-starter`,
           title: '通用任务 Prompt',
           description: `为 ${payload.name} 准备一段可直接使用的任务指令。`,
           content:
@@ -296,10 +250,11 @@ export function HomePage() {
       ],
     }
 
-    setTools((currentTools) => [newTool, ...currentTools])
+    toolsStoreActions.addTool(newTool)
     setActiveCategory(payload.group)
     setSearchQuery('')
     setSelectedTags([])
+    setFavoriteOnly(false)
     setSelectedToolId(newTool.id)
     setIsAddToolOpen(false)
   }
@@ -320,7 +275,7 @@ export function HomePage() {
         <div className="search-box">
           <input
             value={searchQuery}
-            placeholder="搜索 AI 工具、Prompt 模板、分类..."
+            placeholder="搜索名称、描述、标签、使用场景、Prompt..."
             onChange={(event) => changeSearchQuery(event.target.value)}
           />
           {searchQuery ? (
@@ -331,7 +286,7 @@ export function HomePage() {
         </div>
 
         <button className="theme-toggle" onClick={() => setIsDark(!isDark)}>
-          {isDark ? '☀️ 亮色模式' : '🌙 暗色模式'}
+          {isDark ? '亮色模式' : '暗色模式'}
         </button>
       </header>
 
@@ -344,31 +299,54 @@ export function HomePage() {
           onClearTags={() => setSelectedTags([])}
         />
 
-        {selectedTool ? (
-          <ToolDetail
-            key={selectedTool.id}
-            tool={selectedTool}
-            onBack={() => setSelectedToolId(null)}
-            onToggleFavorite={toggleFavorite}
-            onDelete={deleteTool}
-            onUpdate={updateTool}
-            onUseTool={recordToolUse}
-            onOpenTool={openToolWebsite}
-          />
-        ) : (
-          <ToolGrid
-            title={`${activeCategoryLabel}工具`}
-            selectedTags={selectedTags}
-            searchQuery={searchQuery}
-            tools={filteredTools}
-            onToolSelect={setSelectedToolId}
-            onFavoriteToggle={toggleFavorite}
-            onOpenTool={openToolWebsite}
-            onAddTool={() => setIsAddToolOpen(true)}
-          />
-        )}
+        <div className="center-column">
+          {selectedTool ? (
+            <ToolDetail
+              key={selectedTool.id}
+              favoritePromptIds={favoritePromptIds}
+              tool={selectedTool}
+              onBack={() => setSelectedToolId(null)}
+              onToggleFavorite={toggleFavorite}
+              onTogglePromptFavorite={toolsStoreActions.togglePromptFavorite}
+              onDelete={deleteTool}
+              onUpdate={updateTool}
+              onPromptCopied={toolsStoreActions.recordPromptCopied}
+              onTemplateEdited={toolsStoreActions.recordTemplateEdited}
+              onOpenTool={openToolWebsite}
+            />
+          ) : (
+            <>
+              <ToolAgentPanel
+                favoriteWorkflows={favoriteWorkflows}
+                tools={tools}
+                onToolSelect={selectTool}
+                onWorkflowSave={toolsStoreActions.saveWorkflow}
+              />
+              <ToolGrid
+                title={`${activeCategoryLabel}工具`}
+                favoriteOnly={favoriteOnly}
+                selectedTags={selectedTags}
+                searchQuery={debouncedSearchQuery}
+                tools={filteredTools}
+                onToolSelect={selectTool}
+                onFavoriteOnlyChange={setFavoriteOnly}
+                onFavoriteToggle={toggleFavorite}
+                onOpenTool={openToolWebsite}
+                onAddTool={() => setIsAddToolOpen(true)}
+                onClearFilters={clearFilters}
+              />
+            </>
+          )}
+        </div>
 
-        <RightPanel tools={tools} onToolSelect={setSelectedToolId} />
+        <RightPanel
+          favoritePromptIds={favoritePromptIds}
+          favoriteWorkflows={favoriteWorkflows}
+          recentItems={recentItems}
+          tools={tools}
+          onToolSelect={selectTool}
+          onWorkflowSelect={openWorkflow}
+        />
       </main>
 
       {isAddToolOpen && (
